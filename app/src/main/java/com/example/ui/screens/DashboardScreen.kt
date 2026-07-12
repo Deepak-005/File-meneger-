@@ -39,6 +39,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -135,12 +141,18 @@ fun DashboardScreen(
                 }
                 is StorageUiState.Success -> {
                     val stats = state.stats
+                    var selectedCategoryIndex by remember { mutableStateOf(-1) }
+
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         StorageGraph(
                             stats = stats,
+                            selectedIndex = selectedCategoryIndex,
+                            onSliceSelected = { index ->
+                                selectedCategoryIndex = if (selectedCategoryIndex == index) -1 else index
+                            },
                             modifier = Modifier.size(240.dp)
                         )
 
@@ -159,43 +171,140 @@ fun DashboardScreen(
                                 sizeBytes = stats.imagesSize,
                                 color = Color(0xFF4CAF50),
                                 icon = Icons.Default.Photo,
-                                onClick = { onCategoryClick("image/*") }
+                                isSelected = selectedCategoryIndex == 0,
+                                onClick = {
+                                    selectedCategoryIndex = if (selectedCategoryIndex == 0) -1 else 0
+                                }
                             )
                             CategoryLegendBadge(
                                 label = "Videos",
                                 sizeBytes = stats.videosSize,
                                 color = Color(0xFF2196F3),
                                 icon = Icons.Default.Movie,
-                                onClick = { onCategoryClick("video/*") }
+                                isSelected = selectedCategoryIndex == 1,
+                                onClick = {
+                                    selectedCategoryIndex = if (selectedCategoryIndex == 1) -1 else 1
+                                }
                             )
                             CategoryLegendBadge(
                                 label = "Audios",
                                 sizeBytes = stats.audioSize,
                                 color = Color(0xFFFF9800),
                                 icon = Icons.Default.AudioFile,
-                                onClick = { onCategoryClick("audio/*") }
+                                isSelected = selectedCategoryIndex == 2,
+                                onClick = {
+                                    selectedCategoryIndex = if (selectedCategoryIndex == 2) -1 else 2
+                                }
                             )
                             CategoryLegendBadge(
                                 label = "Documents",
                                 sizeBytes = stats.documentsSize,
                                 color = Color(0xFF00BCD4),
                                 icon = Icons.Default.Description,
-                                onClick = { onCategoryClick("text/plain") }
+                                isSelected = selectedCategoryIndex == 3,
+                                onClick = {
+                                    selectedCategoryIndex = if (selectedCategoryIndex == 3) -1 else 3
+                                }
                             )
                             CategoryLegendBadge(
                                 label = "Apps",
                                 sizeBytes = stats.appsSize,
                                 color = Color(0xFFE91E63),
                                 icon = Icons.Default.Android,
-                                onClick = { onCategoryClick("application/vnd.android.package-archive") }
+                                isSelected = selectedCategoryIndex == 4,
+                                onClick = {
+                                    selectedCategoryIndex = if (selectedCategoryIndex == 4) -1 else 4
+                                }
                             )
                             CategoryLegendBadge(
                                 label = "Archives",
                                 sizeBytes = stats.zipSize,
                                 color = Color(0xFF9C27B0),
                                 icon = Icons.Default.FolderZip,
-                                onClick = { onCategoryClick("application/zip") }
+                                isSelected = selectedCategoryIndex == 5,
+                                onClick = {
+                                    selectedCategoryIndex = if (selectedCategoryIndex == 5) -1 else 5
+                                }
                             )
+                            CategoryLegendBadge(
+                                label = "Other",
+                                sizeBytes = stats.otherSize,
+                                color = Color(0xFF9E9E9E),
+                                icon = Icons.Default.Storage,
+                                isSelected = selectedCategoryIndex == 6,
+                                onClick = {
+                                    selectedCategoryIndex = if (selectedCategoryIndex == 6) -1 else 6
+                                }
+                            )
+                        }
+
+                        // Detailed Highlight Card (visualizing distribution detail analysis)
+                        AnimatedVisibility(visible = selectedCategoryIndex != -1) {
+                            val categoriesData = listOf(
+                                Triple("Photos", stats.imagesSize, "image/*"),
+                                Triple("Videos", stats.videosSize, "video/*"),
+                                Triple("Audios", stats.audioSize, "audio/*"),
+                                Triple("Documents", stats.documentsSize, "text/plain"),
+                                Triple("Apps", stats.appsSize, "application/vnd.android.package-archive"),
+                                Triple("Archives", stats.zipSize, "application/zip"),
+                                Triple("Other", stats.otherSize, "*/*")
+                            )
+                            val colorsData = listOf(
+                                Color(0xFF4CAF50), Color(0xFF2196F3), Color(0xFFFF9800),
+                                Color(0xFF00BCD4), Color(0xFFE91E63), Color(0xFF9C27B0), Color(0xFF9E9E9E)
+                            )
+
+                            val index = selectedCategoryIndex
+                            if (index in categoriesData.indices) {
+                                val (name, sizeBytes, mime) = categoriesData[index]
+                                val color = colorsData[index]
+                                val totalUsed = stats.usedSpace.toDouble()
+                                val percentage = if (totalUsed > 0) (sizeBytes.toDouble() / totalUsed * 100).toInt() else 0
+
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = color.copy(alpha = 0.12f)
+                                    ),
+                                    border = BorderStroke(1.dp, color.copy(alpha = 0.4f)),
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = name,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = color
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "${formatSize(sizeBytes)} of used space",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Text(
+                                                text = "Represents $percentage% of your files",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Button(
+                                            onClick = { onCategoryClick(mime) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = color),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Text("Explore", color = Color.White)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -258,6 +367,7 @@ fun CategoryLegendBadge(
     sizeBytes: Long,
     color: Color,
     icon: ImageVector,
+    isSelected: Boolean,
     onClick: () -> Unit
 ) {
     Card(
@@ -265,7 +375,10 @@ fun CategoryLegendBadge(
             .padding(4.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) color.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        ),
+        border = if (isSelected) BorderStroke(1.5.dp, color) else null
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),

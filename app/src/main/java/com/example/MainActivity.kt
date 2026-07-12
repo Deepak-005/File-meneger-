@@ -273,7 +273,10 @@ fun MainContent(
                                 currentRoute?.startsWith("text_editor") == true ||
                                 currentRoute?.startsWith("pdf_viewer") == true
 
-                        if (!isViewer) {
+                        val selectedItems by viewModel.selectedItems.collectAsState()
+                        val hideTopBar = isViewer || (currentRoute == Routes.BROWSER && selectedItems.isNotEmpty())
+
+                        if (!hideTopBar) {
                             TopAppBar(
                                 title = {
                                     Text(
@@ -318,7 +321,10 @@ fun MainContent(
                                 currentRoute?.startsWith("text_editor") == true ||
                                 currentRoute?.startsWith("pdf_viewer") == true
 
-                        if (!isViewer) {
+                        val selectedItems by viewModel.selectedItems.collectAsState()
+                        val hideBottomBar = isViewer || (currentRoute == Routes.BROWSER && selectedItems.isNotEmpty())
+
+                        if (!hideBottomBar) {
                             NavigationBar {
                                 val items = listOf(
                                     Triple(Routes.DASHBOARD, "Storage", Icons.Outlined.Storage to Icons.Filled.Storage),

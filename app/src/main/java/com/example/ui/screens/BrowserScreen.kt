@@ -28,6 +28,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.DriveFileMove
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Close
@@ -74,6 +80,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -134,30 +141,11 @@ fun BrowserScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = { viewModel.copySelected() }) {
-                            Icon(imageVector = Icons.Default.ContentCopy, contentDescription = "Copy")
-                        }
-                        IconButton(onClick = { viewModel.cutSelected() }) {
-                            Icon(imageVector = Icons.Default.ContentCut, contentDescription = "Cut")
-                        }
-                        IconButton(onClick = { viewModel.deleteSelectedFiles() }) {
-                            Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete")
-                        }
-                        IconButton(onClick = {
-                            zipNameInput = "archive"
-                            showZipDialog = true
-                        }) {
-                            Icon(imageVector = Icons.Default.FolderZip, contentDescription = "Compress")
-                        }
-                        if (selectedItems.size == 1) {
-                            IconButton(onClick = {
-                                val item = selectedItems.first()
-                                itemToRename = item
-                                renameInput = item.name
-                                showRenameDialog = true
-                            }) {
-                                Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Rename")
-                            }
+                        IconButton(
+                            onClick = { viewModel.selectAll() },
+                            modifier = Modifier.testTag("action_select_all")
+                        ) {
+                            Icon(imageVector = Icons.Default.SelectAll, contentDescription = "Select All")
                         }
                     }
                 )
@@ -298,60 +286,132 @@ fun BrowserScreen(
             }
         },
         bottomBar = {
-            // Paste Action bar (visible when clipboard is full)
-            AnimatedVisibility(
-                visible = clipboardPaths.isNotEmpty(),
-                enter = slideInVertically(initialOffsetY = { it }),
-                exit = slideOutVertically(targetOffsetY = { it })
-            ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                    tonalElevation = 8.dp,
-                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-                    modifier = Modifier.fillMaxWidth()
+            Box {
+                // Paste Action bar (visible when clipboard is full and no items are selected)
+                AnimatedVisibility(
+                    visible = clipboardPaths.isNotEmpty() && selectedItems.isEmpty(),
+                    enter = slideInVertically(initialOffsetY = { it }),
+                    exit = slideOutVertically(targetOffsetY = { it })
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        tonalElevation = 8.dp,
+                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column {
-                            Text(
-                                text = "${clipboardPaths.size} items on clipboard",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                            Text(
-                                text = "Paste mode: ${pasteMode?.name}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
-                            )
-                        }
-
-                        Row {
-                            Button(
-                                onClick = { viewModel.cancelPaste() },
-                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                ),
-                                modifier = Modifier.padding(end = 8.dp)
-                            ) {
-                                Text("Cancel")
+                        Row(
+                            modifier = Modifier
+                                .navigationBarsPadding()
+                                .padding(16.dp)
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "${clipboardPaths.size} items on clipboard",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                                Text(
+                                    text = "Paste mode: ${pasteMode?.name}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                                )
                             }
 
-                            Button(
-                                onClick = { viewModel.paste() },
-                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary
+                            Row {
+                                Button(
+                                    onClick = { viewModel.cancelPaste() },
+                                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    ),
+                                    modifier = Modifier.padding(end = 8.dp)
+                                ) {
+                                    Text("Cancel")
+                                }
+
+                                Button(
+                                    onClick = { viewModel.paste() },
+                                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary
+                                    )
+                                ) {
+                                    Icon(imageVector = Icons.Default.ContentPaste, contentDescription = "Paste")
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Paste Here")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Bulk Selection Actions Bar
+                AnimatedVisibility(
+                    visible = selectedItems.isNotEmpty(),
+                    enter = slideInVertically(initialOffsetY = { it }),
+                    exit = slideOutVertically(targetOffsetY = { it })
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        tonalElevation = 8.dp,
+                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .navigationBarsPadding()
+                                .padding(vertical = 10.dp, horizontal = 12.dp)
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            BulkActionItem(
+                                icon = Icons.Default.ContentCopy,
+                                label = "Copy",
+                                onClick = { viewModel.copySelected() },
+                                modifier = Modifier.testTag("bulk_copy_btn")
+                            )
+
+                            BulkActionItem(
+                                icon = Icons.Default.DriveFileMove,
+                                label = "Move",
+                                onClick = { viewModel.cutSelected() },
+                                modifier = Modifier.testTag("bulk_move_btn")
+                            )
+
+                            BulkActionItem(
+                                icon = Icons.Default.Delete,
+                                label = "Delete",
+                                onClick = { viewModel.deleteSelectedFiles() },
+                                contentColor = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.testTag("bulk_delete_btn")
+                            )
+
+                            BulkActionItem(
+                                icon = Icons.Default.FolderZip,
+                                label = "Zip",
+                                onClick = {
+                                    zipNameInput = "archive"
+                                    showZipDialog = true
+                                },
+                                modifier = Modifier.testTag("bulk_zip_btn")
+                            )
+
+                            if (selectedItems.size == 1) {
+                                BulkActionItem(
+                                    icon = Icons.Default.Edit,
+                                    label = "Rename",
+                                    onClick = {
+                                        val item = selectedItems.first()
+                                        itemToRename = item
+                                        renameInput = item.name
+                                        showRenameDialog = true
+                                    },
+                                    modifier = Modifier.testTag("bulk_rename_btn")
                                 )
-                            ) {
-                                Icon(imageVector = Icons.Default.ContentPaste, contentDescription = "Paste")
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Paste Here")
                             }
                         }
                     }
@@ -593,5 +653,38 @@ fun BreadcrumbsRow(
                     .padding(horizontal = 4.dp, vertical = 2.dp)
             )
         }
+    }
+}
+
+@Composable
+private fun BulkActionItem(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentColor: Color = MaterialTheme.colorScheme.primary
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 12.dp)
+            .minimumInteractiveComponentSize()
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = contentColor,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Medium,
+            color = contentColor
+        )
     }
 }
