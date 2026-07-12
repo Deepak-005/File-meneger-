@@ -1,0 +1,6 @@
+{
+  "name": "File Manager",
+  "description": "A modern Material 3 File Manager for Android featuring real-time storage analytics, file compression, built-in viewers, and full file operations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
